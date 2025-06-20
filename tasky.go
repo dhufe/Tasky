@@ -9,11 +9,24 @@ import (
 	"time"
 
 	"github.com/alexeyco/simpletable"
+	"github.com/charmbracelet/bubbles/table"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
+
+// style
+var baseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240"))
+
+// model
+type model struct {
+	table table.Model
+}
 
 var (
 	errInvalidIndex = errors.New("invalid index")
-	errEmptyTask = errors.New("task cannot be empty")
+	errEmptyTask    = errors.New("task cannot be empty")
 )
 
 type item struct {
@@ -119,6 +132,93 @@ func (t *Todos) Store(filename string) error {
 	return nil
 }
 
+func (m model) Init() tea.Cmd { return nil }
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			if m.table.Focused() {
+				m.table.Blur()
+			} else {
+				m.table.Focus()
+			}
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "enter":
+			return m, tea.Batch(
+				tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
+			)
+		}
+	}
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
+}
+
+func (m model) View() string {
+	return baseStyle.Render(m.table.View()) + "\n"
+}
+
+func (t *Todos) Table() {
+	columns := []table.Column{
+		{Title: "#", Width: 4},
+		{Title: "Task", Width: 20},
+		{Title: "State", Width: 4},
+		{Title: "Created At", Width: 20},
+		{Title: "Completed At", Width: 20},
+	}
+
+	var rows []table.Row
+
+	for index, item := range *t {
+		task := blue(item.Task)
+		done := "❌"
+		completedAt := "-"
+
+		if item.Done {
+			task = green(item.Task)
+			done = green("✅")
+			completedAt = item.CompletedAt.Format(time.RFC822)
+		}
+
+		rows = append(rows, table.Row{
+			fmt.Sprintf("%d", index+1),
+			task,
+			done,
+			item.CreatedAt.Format(time.RFC822),
+			completedAt,
+		})
+	}
+
+	tb := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(7),
+	)
+
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	tb.SetStyles(s)
+
+	m := model{tb}
+
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		fmt.Println("Error running program:", err)
+		os.Exit(1)
+	}
+}
+
 func (t *Todos) Print() {
 	table := simpletable.New()
 
@@ -158,8 +258,8 @@ func (t *Todos) Print() {
 		Cells: []*simpletable.Cell{
 			{
 				Align: simpletable.AlignCenter,
-				Span: 5,
-				Text: red(fmt.Sprintf("You have %d pending tasks", t.CountPending())),
+				Span:  5,
+				Text:  red(fmt.Sprintf("You have %d pending tasks", t.CountPending())),
 			},
 		},
 	}
@@ -181,4 +281,3 @@ func (t *Todos) CountPending() int {
 func (t *Todos) isValidIndex(index int) bool {
 	return index > 0 && index <= len(*t)
 }
-

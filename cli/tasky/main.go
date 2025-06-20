@@ -6,11 +6,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github/tasky"
 	"io"
 	"os"
 	"strconv"
 	"strings"
+
+	"github/tasky"
 )
 
 const (
@@ -106,7 +107,7 @@ func run() error {
 	case removeTask > 0:
 		return handleRemoveTask(tasks, removeTask)
 	case listTasks:
-		tasks.Print()
+		tasks.Table()
 		return nil
 	default:
 		return errInvalidUsage
@@ -124,7 +125,10 @@ func handleAddTask(tasks *tasky.Todos) error {
 		return fmt.Errorf("failed to store tasks: %w", err)
 	}
 
-	fmt.Printf("\nBoom! Task added: %s 🤘➕.\nNow go crush it like a boss—or just let it chill like your unread PMs😜! \n\n", task)
+	fmt.Printf(
+		"\nBoom! Task added: %s 🤘➕.\nNow go crush it like a boss—or just let it chill like your unread PMs😜! \n\n",
+		task,
+	)
 
 	return nil
 }
