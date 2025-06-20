@@ -10,6 +10,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/charmbracelet/bubbles/table"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github/tasky"
 )
@@ -24,6 +29,16 @@ var (
 	errEmptyTask    = errors.New("your task is empty")
 	errInvalidUsage = errors.New("invalid command usage")
 )
+
+// style
+var baseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240"))
+
+// model
+type model struct {
+	table table.Model
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -107,7 +122,7 @@ func run() error {
 	case removeTask > 0:
 		return handleRemoveTask(tasks, removeTask)
 	case listTasks:
-		tasks.Table()
+		PrintTable(*tasks)
 		return nil
 	default:
 		return errInvalidUsage
@@ -227,4 +242,142 @@ func getInput(r io.Reader, args ...string) (string, error) {
 	}
 
 	return text, nil
+}
+
+/*
+func PrintTable(tasks tasky.Todos) {
+	table := simpletable.New()
+
+	table.Header = &simpletable.Header{
+		Cells: []*simpletable.Cell{
+			{Align: simpletable.AlignCenter, Text: "#"},
+			{Align: simpletable.AlignCenter, Text: "Tasks"},
+			{Align: simpletable.AlignCenter, Text: "State"},
+			{Align: simpletable.AlignRight, Text: "Created At"},
+			{Align: simpletable.AlignRight, Text: "Completed At"},
+		},
+	}
+
+	var cells [][]*simpletable.Cell
+	for index, item := range tasks {
+		task := tasky.Blue(item.Task)
+		done := "❌"
+		completedAt := "-"
+
+		if item.Done {
+			task = tasky.Green(item.Task) // green(item.Task)
+			done = tasky.Green("✅")
+			completedAt = item.CompletedAt.Format(time.RFC822)
+		}
+
+		cells = append(cells, []*simpletable.Cell{
+			{Text: fmt.Sprintf("%d", index+1)},
+			{Text: task},
+			{Text: done},
+			{Text: item.CreatedAt.Format(time.RFC822)},
+			{Text: completedAt},
+		})
+	}
+
+	table.Body = &simpletable.Body{Cells: cells}
+	table.Footer = &simpletable.Footer{
+		Cells: []*simpletable.Cell{
+			{
+				Align: simpletable.AlignCenter,
+				Span:  5,
+				Text:  tasky.Red(fmt.Sprintf("You have %d pending tasks", tasks.CountPending())),
+			},
+		},
+	}
+
+	table.SetStyle(simpletable.StyleUnicode)
+	table.Println()
+}
+*/
+
+func (m model) Init() tea.Cmd { return nil }
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc":
+			if m.table.Focused() {
+				m.table.Blur()
+			} else {
+				m.table.Focus()
+			}
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		case "enter":
+			return m, tea.Batch(
+				tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
+			)
+		}
+	}
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
+}
+
+func (m model) View() string {
+	return baseStyle.Render(m.table.View()) + "\n"
+}
+
+func PrintTable(tasks tasky.Todos) {
+	columns := []table.Column{
+		{Title: "#", Width: 4},
+		{Title: "Task", Width: 20},
+		{Title: "State", Width: 4},
+		{Title: "Created At", Width: 20},
+		{Title: "Completed At", Width: 20},
+	}
+
+	var rows []table.Row
+
+	for index, item := range tasks {
+		task := item.Task
+		done := "❌"
+		completedAt := "-"
+
+		if item.Done {
+			task = item.Task
+			done = "✅"
+			completedAt = item.CompletedAt.Format(time.RFC822)
+		}
+
+		rows = append(rows, table.Row{
+			fmt.Sprintf("%d", index+1),
+			task,
+			done,
+			item.CreatedAt.Format(time.RFC822),
+			completedAt,
+		})
+	}
+
+	tb := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(true),
+		table.WithHeight(7),
+	)
+
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	tb.SetStyles(s)
+
+	m := model{tb}
+
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		fmt.Println("Error running program:", err)
+		os.Exit(1)
+	}
 }
