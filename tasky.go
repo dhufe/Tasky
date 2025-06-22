@@ -50,6 +50,30 @@ func (t *Todos) Complete(index int) error {
 	return nil
 }
 
+func (t *Todos) UnComplete(index int) error {
+	if !t.isValidIndex(index) {
+		return errInvalidIndex
+	}
+
+	(*t)[index-1].CompletedAt = time.Time{}
+	(*t)[index-1].Done = false
+
+	return nil
+}
+
+func (t *Todos) ToggleState(index int) error {
+	if !t.isValidIndex(index) {
+		return errInvalidIndex
+	}
+
+	if (*t)[index-1].Done {
+		t.UnComplete(index)
+	} else {
+		t.Complete(index)
+	}
+	return nil
+}
+
 func (t *Todos) Edit(index int, newTask string) error {
 	if !t.isValidIndex(index) {
 		return errInvalidIndex
