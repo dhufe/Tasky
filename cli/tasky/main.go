@@ -38,6 +38,7 @@ var baseStyle = lipgloss.NewStyle().
 // model
 type model struct {
 	table table.Model
+	tasks *tasky.Todos
 }
 
 func main() {
@@ -244,64 +245,30 @@ func getInput(r io.Reader, args ...string) (string, error) {
 	return text, nil
 }
 
-/*
-func PrintTable(tasks tasky.Todos) {
-	table := simpletable.New()
-
-	table.Header = &simpletable.Header{
-		Cells: []*simpletable.Cell{
-			{Align: simpletable.AlignCenter, Text: "#"},
-			{Align: simpletable.AlignCenter, Text: "Tasks"},
-			{Align: simpletable.AlignCenter, Text: "State"},
-			{Align: simpletable.AlignRight, Text: "Created At"},
-			{Align: simpletable.AlignRight, Text: "Completed At"},
-		},
-	}
-
-	var cells [][]*simpletable.Cell
-	for index, item := range tasks {
-		task := tasky.Blue(item.Task)
-		done := "❌"
-		completedAt := "-"
-
-		if item.Done {
-			task = tasky.Green(item.Task) // green(item.Task)
-			done = tasky.Green("✅")
-			completedAt = item.CompletedAt.Format(time.RFC822)
-		}
-
-		cells = append(cells, []*simpletable.Cell{
-			{Text: fmt.Sprintf("%d", index+1)},
-			{Text: task},
-			{Text: done},
-			{Text: item.CreatedAt.Format(time.RFC822)},
-			{Text: completedAt},
-		})
-	}
-
-	table.Body = &simpletable.Body{Cells: cells}
-	table.Footer = &simpletable.Footer{
-		Cells: []*simpletable.Cell{
-			{
-				Align: simpletable.AlignCenter,
-				Span:  5,
-				Text:  tasky.Red(fmt.Sprintf("You have %d pending tasks", tasks.CountPending())),
-			},
-		},
-	}
-
-	table.SetStyle(simpletable.StyleUnicode)
-	table.Println()
+func (m model) Init() tea.Cmd {
+	return nil
 }
-*/
-
-func (m model) Init() tea.Cmd { return nil }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "t":
+			indexTask, _ := strconv.Atoi(m.table.SelectedRow()[0])
+			m.tasks.ToggleState(indexTask)
+
+			if (*m.tasks)[indexTask-1].Done {
+				m.table.SelectedRow()[2] = "✅"
+				m.table.SelectedRow()[4] = (*m.tasks)[indexTask-1].CompletedAt.Format(time.RFC822)
+
+			} else {
+				m.table.SelectedRow()[2] = "❌"
+				m.table.SelectedRow()[4] = "-"
+			}
+			m.table, cmd = m.table.Update(msg)
+			return m, cmd
+
 		case "esc":
 			if m.table.Focused() {
 				m.table.Blur()
@@ -328,7 +295,7 @@ func PrintTable(tasks tasky.Todos) {
 	columns := []table.Column{
 		{Title: "#", Width: 4},
 		{Title: "Task", Width: 20},
-		{Title: "State", Width: 4},
+		{Title: "State", Width: 10},
 		{Title: "Created At", Width: 20},
 		{Title: "Completed At", Width: 20},
 	}
@@ -374,7 +341,7 @@ func PrintTable(tasks tasky.Todos) {
 		Bold(false)
 	tb.SetStyles(s)
 
-	m := model{tb}
+	m := model{tb, &tasks}
 
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Error running program:", err)
