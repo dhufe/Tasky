@@ -24,7 +24,11 @@ var baseStyle = lipgloss.NewStyle().
 
 // model
 type model struct {
+	//
+	ShowModalView bool
+	// table to list tasks
 	table table.Model
+	// tasks data structure
 	tasks *tasky.Todos
 }
 
@@ -63,6 +67,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.table, cmd = m.table.Update(msg)
 			m.table.UpdateViewport()
 			return m, cmd
+		case "a":
+			if m.ShowModalView {
+				m.ShowModalView = false
+			} else {
+				m.ShowModalView = true
+			}
+			m.table, cmd = m.table.Update(msg)
+			m.table.UpdateViewport()
+			return m, cmd
 
 		case "esc":
 			if m.table.Focused() {
@@ -82,8 +95,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func modalView() string {
+	return `
++------------------+
+|   MODAL WINDOW   |
+| Press [enter] to |
+| close the modal  |
++------------------+
+[q] quit
+`
+}
+
 func (m model) View() string {
-	return baseStyle.Render(m.table.View()) + "\n"
+	if m.ShowModalView {
+		return modalView()
+	} else {
+		return baseStyle.Render(m.table.View()) + "\n"
+	}
 }
 
 func PrintTable(tasks tasky.Todos) {
@@ -136,7 +164,7 @@ func PrintTable(tasks tasky.Todos) {
 		Bold(false)
 	tb.SetStyles(s)
 
-	m := model{tb, &tasks}
+	m := model{false, tb, &tasks}
 
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Error running program:", err)
