@@ -61,6 +61,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.table.SelectedRow()[4] = "-"
 			}
 			m.table, cmd = m.table.Update(msg)
+			m.table.UpdateViewport()
 			return m, cmd
 
 		case "esc":
