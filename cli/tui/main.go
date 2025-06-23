@@ -2,119 +2,23 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-
-	"github/tasky"
 )
 
 const (
-	taskFile = ".tasky.json"
+	cTaskFile = ".tasky.json"
 )
 
-// style
-var baseStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240"))
-
-// model
-type model struct {
-	//
-	ShowModalView bool
-	// table to list tasks
-	table table.Model
-	// tasks data structure
-	tasks *tasky.Todos
-}
-
 func main() {
-	tasks := &tasky.Todos{}
+	m := NewModel(cTaskFile)
 
-	// Load tasks from the file.
-	if err := tasks.Load(taskFile); err != nil {
-		fmt.Printf("failed to load tasks: %w", err)
-	} else {
-		PrintTable(*tasks)
-	}
-}
-
-func (m model) Init() tea.Cmd {
-	return nil
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "t":
-			indexTask, _ := strconv.Atoi(m.table.SelectedRow()[0])
-			m.tasks.ToggleState(indexTask)
-
-			if (*m.tasks)[indexTask-1].Done {
-				m.table.SelectedRow()[2] = "✅"
-				m.table.SelectedRow()[4] = (*m.tasks)[indexTask-1].CompletedAt.Format(time.RFC822)
-
-			} else {
-				m.table.SelectedRow()[2] = "❌"
-				m.table.SelectedRow()[4] = "-"
-			}
-			m.table, cmd = m.table.Update(msg)
-			m.table.UpdateViewport()
-			return m, cmd
-		case "a":
-			if m.ShowModalView {
-				m.ShowModalView = false
-			} else {
-				m.ShowModalView = true
-			}
-			m.table, cmd = m.table.Update(msg)
-			m.table.UpdateViewport()
-			return m, cmd
-
-		case "esc":
-			if m.table.Focused() {
-				m.table.Blur()
-			} else {
-				m.table.Focus()
-			}
-		case "q", "ctrl+c":
-			return m, tea.Quit
-		case "enter":
-			return m, tea.Batch(
-				tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
-			)
-		}
-	}
-	m.table, cmd = m.table.Update(msg)
-	return m, cmd
-}
-
-func modalView() string {
-	return `
-+------------------+
-|   MODAL WINDOW   |
-| Press [enter] to |
-| close the modal  |
-+------------------+
-[q] quit
-`
-}
-
-func (m model) View() string {
-	if m.ShowModalView {
-		return modalView()
-	} else {
-		return baseStyle.Render(m.table.View()) + "\n"
-	}
-}
-
-func PrintTable(tasks tasky.Todos) {
+	fmt.Printf("items: %d", len(*m.tasks))
 	columns := []table.Column{
 		{Title: "#", Width: 4},
 		{Title: "Task", Width: 20},
@@ -125,7 +29,7 @@ func PrintTable(tasks tasky.Todos) {
 
 	var rows []table.Row
 
-	for index, item := range tasks {
+	for index, item := range *m.tasks {
 		task := item.Task
 		done := "❌"
 		completedAt := "-"
@@ -145,7 +49,7 @@ func PrintTable(tasks tasky.Todos) {
 		})
 	}
 
-	tb := table.New(
+	m.table = table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),
 		table.WithFocused(true),
@@ -162,12 +66,10 @@ func PrintTable(tasks tasky.Todos) {
 		Foreground(lipgloss.Color("229")).
 		Background(lipgloss.Color("57")).
 		Bold(false)
-	tb.SetStyles(s)
-
-	m := model{false, tb, &tasks}
+	m.table.SetStyles(s)
 
 	if _, err := tea.NewProgram(m).Run(); err != nil {
-		fmt.Println("Error running program:", err)
+		log.Fatalf("Error running program: %v", err)
 		os.Exit(1)
 	}
 }
