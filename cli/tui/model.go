@@ -18,6 +18,8 @@ type model struct {
 	table table.Model
 	// tasks data structure
 	tasks *tasky.Todos
+	// tasks file
+	taskFile string
 }
 
 func NewModel(taskFile string) model {
@@ -30,6 +32,7 @@ func NewModel(taskFile string) model {
 		ShowModalView: false,
 		table:         table.New(),
 		tasks:         tasks,
+		taskFile:      taskFile,
 	}
 }
 
@@ -56,6 +59,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.table, cmd = m.table.Update(msg)
 			m.table.UpdateViewport()
+			m.tasks.Store(m.taskFile)
+
 			return m, cmd
 		case "a":
 			if m.ShowModalView {

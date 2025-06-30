@@ -22,17 +22,10 @@ var (
 func modalView() string {
 	return fmt.Sprintf(
 		` 
- %s
-
- %s  %s
- %s
+ %s %s
 `,
 		inputStyle.Width(30).Render("Taskname:"),
-		// m.inputs[ccn].View(),
-		inputStyle.Width(6).Render("EXP"),
-		inputStyle.Width(6).Render("CVV"),
 		// m.inputs[exp].View(),
-		// m.inputs[cvv].View(),
 		continueStyle.Render("Continue ->"),
 	) + "\n"
 }
